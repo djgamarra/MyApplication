@@ -18,8 +18,6 @@ import com.example.myapplication.loader.LayerLoaderStatus
 
 class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListener,
     LayerLoadStatusChanged {
-    private val apiKey =
-        "AAPK49259e1bedf948118e888db28ac88eccpPKIrH6eeI2Yv1kjlYAzEydv6aDzMSZrLkM3yhtfREyO8Q-DJCCjZRm4aA5XQRje"
 
     private val activityMainBinding by lazy {
         ActivityMainBinding.inflate(layoutInflater)
@@ -49,11 +47,11 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     }
 
     private fun setApiKeyForApp() {
-        ArcGISRuntimeEnvironment.setApiKey(apiKey)
+        ArcGISRuntimeEnvironment.setApiKey(Constants.apiKey)
     }
 
     private fun setupMap() {
-        LayerLoader.instance.apply {
+        LayerLoader.apply {
             addStatusChangedListener(this@MainActivity)
             firstLoad()
         }
@@ -73,7 +71,7 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     }
 
     override fun onPause() {
-        LayerLoader.instance.removeStatusChangedListener(this)
+        LayerLoader.removeStatusChangedListener(this)
         mapView.pause()
         super.onPause()
     }
@@ -81,11 +79,11 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     override fun onResume() {
         super.onResume()
         mapView.resume()
-        LayerLoader.instance.addStatusChangedListener(this)
+        LayerLoader.addStatusChangedListener(this)
     }
 
     override fun onDestroy() {
-        LayerLoader.instance.removeStatusChangedListener(this)
+        LayerLoader.removeStatusChangedListener(this)
         mapView.dispose()
         super.onDestroy()
     }
@@ -105,7 +103,7 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
 
     override fun onLoaderStatusChanged(status: LayerLoaderStatus) {
         if (status == LayerLoaderStatus.LOADED) {
-            LayerLoader.instance.apply {
+            LayerLoader.apply {
                 loadLayer(41, map)
                 loadLayer(40, map)
                 loadLayer(44, map)

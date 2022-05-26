@@ -4,8 +4,9 @@ import com.esri.arcgisruntime.data.ServiceGeodatabase
 import com.esri.arcgisruntime.layers.FeatureLayer
 import com.esri.arcgisruntime.loadable.LoadStatus
 import com.esri.arcgisruntime.mapping.ArcGISMap
+import com.example.myapplication.Constants
 
-class LayerLoader {
+object LayerLoader {
     private val statusListeners: MutableSet<LayerLoadStatusChanged> = mutableSetOf()
     private var loadStatus: LayerLoaderStatus = LayerLoaderStatus.UNLOADED
         set(value) {
@@ -14,7 +15,7 @@ class LayerLoader {
         }
 
     private val geoService: ServiceGeodatabase by lazy {
-        ServiceGeodatabase(baseUrl)
+        ServiceGeodatabase(Constants.baseUrl)
     }
 
     fun firstLoad() {
@@ -31,8 +32,8 @@ class LayerLoader {
 
     fun loadLayer(layerId: Long, map: ArcGISMap) {
         map.operationalLayers.add(FeatureLayer(geoService.getTable(layerId)).apply {
-            minScale = defaultMinScale
-            maxScale = defaultMaxScale
+            minScale = Constants.defaultMinScale
+            maxScale = Constants.defaultMaxScale
         })
     }
 
@@ -42,15 +43,5 @@ class LayerLoader {
 
     fun removeStatusChangedListener(listener: LayerLoadStatusChanged) {
         statusListeners.remove(listener)
-    }
-
-    companion object {
-        private const val baseUrl =
-            "https://gis.cl.innovacion-gascaribe.com/arcgis/rest/services/PETIGASCARIBE/REDESGASCARIBE/MapServer/"
-        private const val defaultMinScale = 2000000.0
-        private const val defaultMaxScale = 0.0
-        val instance: LayerLoader by lazy {
-            LayerLoader()
-        }
     }
 }
