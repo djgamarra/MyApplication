@@ -1,21 +1,25 @@
 package com.example.myapplication
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import com.esri.arcgisruntime.ArcGISRuntimeEnvironment
-import com.esri.arcgisruntime.data.ServiceGeodatabase
-import com.esri.arcgisruntime.layers.FeatureLayer
 import com.esri.arcgisruntime.mapping.ArcGISMap
 import com.esri.arcgisruntime.mapping.BasemapStyle
+import com.esri.arcgisruntime.mapping.Viewpoint
+import com.esri.arcgisruntime.mapping.view.LocationDisplay
 import com.esri.arcgisruntime.mapping.view.MapView
-import com.esri.arcgisruntime.symbology.SimpleRenderer
 import com.example.myapplication.databinding.ActivityMainBinding
+import com.example.myapplication.loader.LayerLoadStatusChanged
+import com.example.myapplication.loader.LayerLoader
+import com.example.myapplication.loader.LayerLoaderStatus
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListener,
+    LayerLoadStatusChanged {
     private val apiKey =
         "AAPK49259e1bedf948118e888db28ac88eccpPKIrH6eeI2Yv1kjlYAzEydv6aDzMSZrLkM3yhtfREyO8Q-DJCCjZRm4aA5XQRje"
-    private val baseUrl =
-        "https://gis.cl.innovacion-gascaribe.com/arcgis/rest/services/PETIGASCARIBE/REDESGASCARIBE/MapServer/"
 
     private val activityMainBinding by lazy {
         ActivityMainBinding.inflate(layoutInflater)
@@ -25,6 +29,8 @@ class MainActivity : AppCompatActivity() {
         activityMainBinding.mapView
     }
 
+    private val locationDisplay: LocationDisplay by lazy { mapView.locationDisplay }
+
     private val map: ArcGISMap by lazy {
         ArcGISMap(BasemapStyle.ARCGIS_STREETS)
     }
@@ -32,8 +38,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(activityMainBinding.root)
+        supportActionBar?.hide()
         setApiKeyForApp()
         setupMap()
+        val permissions = arrayOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+        ActivityCompat.requestPermissions(this, permissions, 0)
     }
 
     private fun setApiKeyForApp() {
@@ -41,42 +53,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupMap() {
+        LayerLoader.instance.apply {
+            addStatusChangedListener(this@MainActivity)
+            firstLoad()
+        }
         mapView.map = map
-        loadLayer(41)
-        loadLayer(40)
-        loadLayer(44)
-//        loadLayer(25)
-//        map.operationalLayers.add(FeatureLayer(ServiceFeatureTable(baseUrl + "41")))
-//        map.operationalLayers.add(FeatureLayer(ServiceFeatureTable(baseUrl + "40")))
-//        map.operationalLayers.add(FeatureLayer(ServiceFeatureTable(baseUrl + "44")))
-//        val layer = FeatureLayer(ServiceFeatureTable(baseUrl + "25")).apply {
-//            renderer = SimpleRenderer(SimpleFillSymbol(SimpleFillSymbol.Style.SOLID, 0x0, null))
-//        }
-//        map.operationalLayers.add(layer)
     }
 
-    private fun loadLayer(layerId: Long) {
-//        val serviceTable = ServiceFeatureTable(baseUrl + layerId.toString())
-//        val layer = FeatureLayer(serviceTable).apply {
-//            renderer = UniqueValueRenderer().apply {
-//                defaultSymbol = SimpleMarkerSymbol(SimpleMarkerSymbol.Style.CIRCLE, 0x0, 20f)
-//            }
-//        }
-//        val serviceTable = ServiceFeatureTable(baseUrl + layerId.toString())
-//        val featureCollection = FeatureCollection()
-        ServiceGeodatabase(baseUrl).apply {
-            loadAsync()
-            addDoneLoadingListener {
-                val layer = FeatureLayer(getTable(layerId)).apply {
-                    renderer = SimpleRenderer()
-                }
-                map.operationalLayers.add(layer)
-            }
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            locationDisplay.startAsync()
+            locationDisplay.addLocationChangedListener(this)
         }
-//        map.operationalLayers.add(layer)
     }
 
     override fun onPause() {
+        LayerLoader.instance.removeStatusChangedListener(this)
         mapView.pause()
         super.onPause()
     }
@@ -84,10 +81,39 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         mapView.resume()
+        LayerLoader.instance.addStatusChangedListener(this)
     }
 
     override fun onDestroy() {
+        LayerLoader.instance.removeStatusChangedListener(this)
         mapView.dispose()
         super.onDestroy()
+    }
+
+    private fun moveToMyPosition() {
+        val currentPosition = locationDisplay.location.position
+        mapView.setViewpointAsync(Viewpoint(currentPosition, 200000.0))
+        locationDisplay.removeLocationChangedListener(this)
+    }
+
+    override fun onLocationChanged(locationEvent: LocationDisplay.LocationChangedEvent?) {
+        if (locationEvent == null) {
+            return
+        }
+        moveToMyPosition()
+    }
+
+    override fun onLoaderStatusChanged(status: LayerLoaderStatus) {
+        if (status == LayerLoaderStatus.LOADED) {
+            LayerLoader.instance.apply {
+                loadLayer(41, map)
+                loadLayer(40, map)
+                loadLayer(44, map)
+                loadLayer(36, map)
+                loadLayer(25, map)
+                loadLayer(26, map)
+                loadLayer(31, map)
+            }
+        }
     }
 }
