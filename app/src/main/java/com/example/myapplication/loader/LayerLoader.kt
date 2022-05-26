@@ -1,5 +1,6 @@
 package com.example.myapplication.loader
 
+import com.esri.arcgisruntime.arcgisservices.IdInfo
 import com.esri.arcgisruntime.data.ServiceGeodatabase
 import com.esri.arcgisruntime.layers.FeatureLayer
 import com.esri.arcgisruntime.loadable.LoadStatus
@@ -16,6 +17,10 @@ object LayerLoader {
 
     private val geoService: ServiceGeodatabase by lazy {
         ServiceGeodatabase(Constants.baseUrl)
+    }
+
+    val serviceLayers: List<IdInfo> by lazy {
+        geoService.serviceInfo.layerInfos.filter { it.id in 25..45 }
     }
 
     fun firstLoad() {

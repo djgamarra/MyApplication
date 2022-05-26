@@ -29,8 +29,8 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
 
     private val locationDisplay: LocationDisplay by lazy { mapView.locationDisplay }
 
-    private val map: ArcGISMap by lazy {
-        ArcGISMap(BasemapStyle.ARCGIS_STREETS)
+    private val baseMap: ArcGISMap by lazy {
+        ArcGISMap(BasemapStyle.ARCGIS_STREETS).apply { this.minScale = Constants.defaultMinScale }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
             addStatusChangedListener(this@MainActivity)
             firstLoad()
         }
-        mapView.map = map
+        mapView.map = baseMap
     }
 
     override fun onRequestPermissionsResult(
@@ -104,13 +104,13 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     override fun onLoaderStatusChanged(status: LayerLoaderStatus) {
         if (status == LayerLoaderStatus.LOADED) {
             LayerLoader.apply {
-                loadLayer(41, map)
-                loadLayer(40, map)
-                loadLayer(44, map)
-                loadLayer(36, map)
-                loadLayer(25, map)
-                loadLayer(26, map)
-                loadLayer(31, map)
+                loadLayer(41, baseMap)
+                loadLayer(40, baseMap)
+                loadLayer(44, baseMap)
+                loadLayer(36, baseMap)
+                loadLayer(25, baseMap)
+                loadLayer(26, baseMap)
+                loadLayer(31, baseMap)
             }
         }
     }
