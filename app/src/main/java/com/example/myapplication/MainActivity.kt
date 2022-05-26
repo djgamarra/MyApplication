@@ -3,21 +3,25 @@ package com.example.myapplication
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.MenuItem
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import com.esri.arcgisruntime.ArcGISRuntimeEnvironment
+import com.esri.arcgisruntime.loadable.LoadStatus
 import com.esri.arcgisruntime.mapping.ArcGISMap
 import com.esri.arcgisruntime.mapping.BasemapStyle
 import com.esri.arcgisruntime.mapping.Viewpoint
 import com.esri.arcgisruntime.mapping.view.LocationDisplay
 import com.esri.arcgisruntime.mapping.view.MapView
 import com.example.myapplication.databinding.ActivityMainBinding
-import com.example.myapplication.loader.LayerLoadStatusChanged
-import com.example.myapplication.loader.LayerLoader
-import com.example.myapplication.loader.LayerLoaderStatus
+import com.example.myapplication.layers.LayerLoadStatusChanged
+import com.example.myapplication.layers.LayersHelper
+import com.google.android.material.navigation.NavigationView
 
 class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListener,
-    LayerLoadStatusChanged {
+    LayerLoadStatusChanged, NavigationView.OnNavigationItemSelectedListener {
 
     private val activityMainBinding by lazy {
         ActivityMainBinding.inflate(layoutInflater)
@@ -25,6 +29,18 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
 
     private val mapView: MapView by lazy {
         activityMainBinding.mapView
+    }
+
+    private val navigationView: NavigationView by lazy {
+        activityMainBinding.navigationView
+    }
+
+    private val drawerLayout: DrawerLayout by lazy {
+        activityMainBinding.drawerLayout
+    }
+
+    private val drawerToggle: ActionBarDrawerToggle by lazy {
+        ActionBarDrawerToggle(this, drawerLayout, R.string.menu_open, R.string.menu_close)
     }
 
     private val locationDisplay: LocationDisplay by lazy { mapView.locationDisplay }
@@ -35,15 +51,18 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(activityMainBinding.root)
-        supportActionBar?.hide()
+        setupView()
         setApiKeyForApp()
         setupMap()
-        val permissions = arrayOf(
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
-        ActivityCompat.requestPermissions(this, permissions, 0)
+        setupPermissions()
+    }
+
+    private fun setupView() {
+        setContentView(activityMainBinding.root)
+        supportActionBar?.hide()
+        drawerLayout.addDrawerListener(drawerToggle)
+        drawerToggle.syncState()
+        navigationView.setNavigationItemSelectedListener(this)
     }
 
     private fun setApiKeyForApp() {
@@ -51,11 +70,34 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     }
 
     private fun setupMap() {
-        LayerLoader.apply {
+        LayersHelper.apply {
             addStatusChangedListener(this@MainActivity)
-            firstLoad()
+            firstLoad(baseMap)
         }
         mapView.map = baseMap
+    }
+
+    private fun setupPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+        ActivityCompat.requestPermissions(this, permissions, 0)
+    }
+
+    private fun moveToMyPosition() {
+        val currentPosition = locationDisplay.location.position
+        mapView.setViewpointAsync(Viewpoint(currentPosition, 200000.0))
+        locationDisplay.removeLocationChangedListener(this)
+    }
+
+    private fun loadLayers() {
+        navigationView.menu.apply {
+            clear()
+            LayersHelper.serviceLayers.forEach {
+                add(0, it.id.toInt(), 0, it.name)
+            }
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -71,7 +113,7 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     }
 
     override fun onPause() {
-        LayerLoader.removeStatusChangedListener(this)
+        LayersHelper.removeStatusChangedListener(this)
         mapView.pause()
         super.onPause()
     }
@@ -79,19 +121,13 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     override fun onResume() {
         super.onResume()
         mapView.resume()
-        LayerLoader.addStatusChangedListener(this)
+        LayersHelper.addStatusChangedListener(this)
     }
 
     override fun onDestroy() {
-        LayerLoader.removeStatusChangedListener(this)
+        LayersHelper.removeStatusChangedListener(this)
         mapView.dispose()
         super.onDestroy()
-    }
-
-    private fun moveToMyPosition() {
-        val currentPosition = locationDisplay.location.position
-        mapView.setViewpointAsync(Viewpoint(currentPosition, 200000.0))
-        locationDisplay.removeLocationChangedListener(this)
     }
 
     override fun onLocationChanged(locationEvent: LocationDisplay.LocationChangedEvent?) {
@@ -101,17 +137,26 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
         moveToMyPosition()
     }
 
-    override fun onLoaderStatusChanged(status: LayerLoaderStatus) {
-        if (status == LayerLoaderStatus.LOADED) {
-            LayerLoader.apply {
-                loadLayer(41, baseMap)
-                loadLayer(40, baseMap)
-                loadLayer(44, baseMap)
-                loadLayer(36, baseMap)
-                loadLayer(25, baseMap)
-                loadLayer(26, baseMap)
-                loadLayer(31, baseMap)
+    override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        LayersHelper.serviceLayers.find { it.id.toInt() == item.itemId }?.let { serviceLayer ->
+            serviceLayer.active = !serviceLayer.active
+            item.isChecked = serviceLayer.active
+            if (serviceLayer.active) {
+                LayersHelper.loadLayer(serviceLayer.id)
+            } else {
+                LayersHelper.removeLayer(serviceLayer.id)
             }
         }
+        return true
+    }
+
+    override fun onGeoServiceLoadStatusChanged(status: LoadStatus) {
+        if (status == LoadStatus.LOADED) {
+            loadLayers()
+        }
+    }
+
+    override fun onLayerLoadStatusChanged(status: LoadStatus) {
+
     }
 }

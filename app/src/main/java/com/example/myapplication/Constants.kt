@@ -7,4 +7,5 @@ object Constants {
         "https://gis.cl.innovacion-gascaribe.com/arcgis/rest/services/PETIGASCARIBE/REDESGASCARIBE/MapServer/"
     const val defaultMinScale = 700000.0
     const val defaultMaxScale = 0.0
+    val enabledLayerIds = 25..45
 }
