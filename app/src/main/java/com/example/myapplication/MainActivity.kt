@@ -46,7 +46,9 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     private val locationDisplay: LocationDisplay by lazy { mapView.locationDisplay }
 
     private val baseMap: ArcGISMap by lazy {
-        ArcGISMap(BasemapStyle.ARCGIS_STREETS).apply { this.minScale = Constants.defaultMinScale }
+        ArcGISMap(BasemapStyle.ARCGIS_STREETS).apply {
+            this.minScale = Constants.defaultMinScale
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
