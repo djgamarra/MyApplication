@@ -1,6 +1,7 @@
 package com.example.myapplication.layers
 
-import com.esri.arcgisruntime.data.ServiceGeodatabase
+import com.esri.arcgisruntime.layers.ArcGISMapImageLayer
+import com.esri.arcgisruntime.layers.ArcGISMapImageSublayer
 import com.esri.arcgisruntime.loadable.LoadStatus
 import com.esri.arcgisruntime.mapping.ArcGISMap
 import com.example.myapplication.Constants
@@ -13,24 +14,25 @@ object LayersHelper {
             statusListeners.forEach { it.onGeoServiceLoadStatusChanged(value) }
         }
     private lateinit var map: ArcGISMap
-    val serviceLayers: MutableList<ServiceLayer> = mutableListOf()
+    val serviceLayers: MutableMap<Long, ServiceLayer> = mutableMapOf()
 
-    private val geoService: ServiceGeodatabase by lazy {
-        ServiceGeodatabase(Constants.baseUrl)
+    private val rootLayer: ArcGISMapImageLayer by lazy {
+        ArcGISMapImageLayer(Constants.baseUrl).apply {
+            isVisible = false
+            minScale = Constants.defaultMinScale
+            maxScale = Constants.defaultMaxScale
+        }
     }
 
     fun firstLoad(_map: ArcGISMap) {
         map = _map
         loadStatus = LoadStatus.LOADING
-        geoService.loadAsync()
-        geoService.addDoneLoadingListener {
-            loadStatus = if (geoService.loadStatus == LoadStatus.LOADED) {
-                serviceLayers.clear()
-                serviceLayers.addAll(geoService
-                    .serviceInfo
-                    .layerInfos
-                    .filter { it.id in Constants.enabledLayerIds }
-                    .map { ServiceLayer(it, geoService, map) })
+        map.operationalLayers.add(rootLayer)
+        rootLayer.addDoneLoadingListener {
+            serviceLayers.clear()
+            loadStatus = if (rootLayer.loadStatus == LoadStatus.LOADED) {
+                initSubLayers()
+                rootLayer.isVisible = true
                 LoadStatus.LOADED
             } else {
                 LoadStatus.FAILED_TO_LOAD
@@ -38,12 +40,30 @@ object LayersHelper {
         }
     }
 
-    fun loadLayer(layerId: Long) {
-        serviceLayers.find { it.id == layerId }?.active = true
+    private fun initSubLayers() {
+        rootLayer.sublayers.forEach { runSubLayerTree(it as ArcGISMapImageSublayer) }
     }
 
-    fun removeLayer(layerId: Long) {
-        serviceLayers.find { it.id == layerId }?.active = false
+    private fun runSubLayerTree(subLayer: ArcGISMapImageSublayer) {
+        val isRootLayer = Constants.rootLayerIds.contains(subLayer.id)
+        subLayer.apply {
+            isVisible = isRootLayer
+            minScale = Constants.defaultMinScale
+            maxScale = Constants.defaultMaxScale
+        }
+        if (isRootLayer) {
+            subLayer.sublayers.forEach { runSubLayerTree(it as ArcGISMapImageSublayer) }
+        } else if (subLayer.id in Constants.featureLayerIds) {
+            serviceLayers[subLayer.id] = ServiceLayer(subLayer)
+        }
+    }
+
+    fun showLayer(layerId: Long) {
+        serviceLayers[layerId]?.active = true
+    }
+
+    fun hideLayer(layerId: Long) {
+        serviceLayers[layerId]?.active = false
     }
 
     fun addStatusChangedListener(listener: LayerLoadStatusChanged) {

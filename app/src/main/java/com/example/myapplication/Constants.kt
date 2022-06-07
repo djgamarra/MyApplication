@@ -7,5 +7,10 @@ object Constants {
         "https://gis.cl.innovacion-gascaribe.com/arcgis/rest/services/PETIGASCARIBE/REDESGASCARIBE/MapServer/"
     const val defaultMinScale = 700000.0
     const val defaultMaxScale = 0.0
-    val enabledLayerIds = 25..45
+    // The only visible layers must be:
+    // -- 2: Red de Gas
+    //  |-- 24: En Servicio
+    val rootLayerIds = listOf(2L, 24L)
+    //    |-- 25 to 45: Feature layers
+    val featureLayerIds = 25L..45L
 }

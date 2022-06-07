@@ -9,8 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.esri.arcgisruntime.ArcGISRuntimeEnvironment
-import com.esri.arcgisruntime.layers.ArcGISMapImageLayer
-import com.esri.arcgisruntime.layers.ArcGISSublayer
 import com.esri.arcgisruntime.loadable.LoadStatus
 import com.esri.arcgisruntime.mapping.ArcGISMap
 import com.esri.arcgisruntime.mapping.BasemapStyle
@@ -49,7 +47,8 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
 
     private val baseMap: ArcGISMap by lazy {
         ArcGISMap(BasemapStyle.ARCGIS_STREETS).apply {
-            this.minScale = Constants.defaultMinScale
+            minScale = Constants.defaultMinScale
+            maxScale = Constants.defaultMaxScale
         }
     }
 
@@ -58,7 +57,6 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
         setupView()
         setApiKeyForApp()
         setupMap()
-        setupMapV2()
         setupPermissions()
     }
 
@@ -80,54 +78,6 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
             firstLoad(baseMap)
         }
         mapView.map = baseMap
-
-    }
-
-    private lateinit var layer: ArcGISMapImageLayer
-
-    private fun setupMapV2() {
-        layer = ArcGISMapImageLayer(Constants.baseUrl).apply {
-            minScale = Constants.defaultMinScale
-            maxScale = Constants.defaultMaxScale
-        }
-        baseMap.operationalLayers.add(layer)
-    }
-
-    // TODO: Optimizar
-    private fun getLayerById(layer: ArcGISMapImageLayer, layerId: Long): ArcGISSublayer? {
-        for (l in layer.sublayers) {
-            if (l.id == layerId) {
-                return l
-            } else {
-                val l2 = getSubLayerById(l, layerId)
-                if (l2 != null) {
-                    return l2
-                }
-            }
-        }
-        return null
-    }
-
-    private fun getSubLayerById(layer: ArcGISSublayer, layerId: Long): ArcGISSublayer? {
-        for (l in layer.sublayers) {
-            if (l.id == layerId) {
-                return l
-            } else {
-                val l2 = getSubLayerById(l, layerId)
-                if (l2 != null) {
-                    return l2
-                }
-            }
-        }
-        return null
-    }
-
-    private fun toggleVisibleLayer(layerId: Long) {
-        val sub = getLayerById(layer, layerId)
-        if (sub != null) {
-            sub.isVisible = !sub.isVisible
-            layer.loadAsync()
-        }
     }
 
     private fun setupPermissions() {
@@ -147,7 +97,7 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     private fun loadLayers() {
         navigationView.menu.apply {
             clear()
-            LayersHelper.serviceLayers.forEach {
+            LayersHelper.serviceLayers.values.forEach {
                 add(0, it.id.toInt(), 0, it.name)
             }
         }
@@ -191,16 +141,13 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        toggleVisibleLayer(item.itemId.toLong())
-//        LayersHelper.serviceLayers.find { it.id.toInt() == item.itemId }?.let { serviceLayer ->
-//            serviceLayer.active = !serviceLayer.active
-//            item.isChecked = serviceLayer.active
-//            if (serviceLayer.active) {
-//                LayersHelper.loadLayer(serviceLayer.id)
-//            } else {
-//                LayersHelper.removeLayer(serviceLayer.id)
-//            }
-//        }
+        val shouldActivate = !item.isChecked
+        item.isChecked = shouldActivate
+        if (shouldActivate) {
+            LayersHelper.showLayer(item.itemId.toLong())
+        } else {
+            LayersHelper.hideLayer(item.itemId.toLong())
+        }
         return true
     }
 
