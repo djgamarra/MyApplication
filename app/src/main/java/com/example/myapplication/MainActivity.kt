@@ -1,7 +1,9 @@
 package com.example.myapplication
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -13,8 +15,12 @@ import com.esri.arcgisruntime.loadable.LoadStatus
 import com.esri.arcgisruntime.mapping.ArcGISMap
 import com.esri.arcgisruntime.mapping.BasemapStyle
 import com.esri.arcgisruntime.mapping.Viewpoint
+import com.esri.arcgisruntime.mapping.view.Graphic
+import com.esri.arcgisruntime.mapping.view.GraphicsOverlay
 import com.esri.arcgisruntime.mapping.view.LocationDisplay
 import com.esri.arcgisruntime.mapping.view.MapView
+import com.esri.arcgisruntime.symbology.PictureMarkerSymbol
+import com.esri.arcgisruntime.symbology.TextSymbol
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.example.myapplication.layers.LayerLoadStatusChanged
 import com.example.myapplication.layers.LayersHelper
@@ -23,13 +29,25 @@ import com.google.android.material.navigation.NavigationView
 
 class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListener,
     LayerLoadStatusChanged, NavigationView.OnNavigationItemSelectedListener {
-
     private val activityMainBinding by lazy {
         ActivityMainBinding.inflate(layoutInflater)
     }
 
     private val mapView: MapView by lazy {
         activityMainBinding.mapView
+    }
+
+    private val locationDisplay: LocationDisplay by lazy { mapView.locationDisplay }
+
+    private val baseMap: ArcGISMap by lazy {
+        ArcGISMap(BasemapStyle.ARCGIS_COMMUNITY).apply {
+            minScale = Constants.defaultMinScale
+            maxScale = Constants.defaultMaxScale
+        }
+    }
+
+    private val mapOverlay: GraphicsOverlay by lazy {
+        GraphicsOverlay()
     }
 
     private val navigationView: NavigationView by lazy {
@@ -44,20 +62,12 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
         ActionBarDrawerToggle(this, drawerLayout, R.string.menu_open, R.string.menu_close)
     }
 
-    private val locationDisplay: LocationDisplay by lazy { mapView.locationDisplay }
-
-    private val baseMap: ArcGISMap by lazy {
-        ArcGISMap(BasemapStyle.ARCGIS_STREETS).apply {
-            minScale = Constants.defaultMinScale
-            maxScale = Constants.defaultMaxScale
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setupView()
         setApiKeyForApp()
         setupMap()
+        setupInitialLocation(intent)
         setupPermissions()
     }
 
@@ -79,6 +89,42 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
             firstLoad(baseMap)
         }
         mapView.map = baseMap
+        mapView.graphicsOverlays.add(mapOverlay)
+    }
+
+    private fun setupInitialLocation(intent: Intent) {
+        val extras = intent.extras
+        if (extras != null) {
+            val lat = extras.getString("latitude", "undefined").toDoubleOrNull()
+            val lng = extras.getString("longitude", "undefined").toDoubleOrNull()
+            val orderType = extras.getString("orderType", "undefined")
+            val address = extras.getString("address", "undefined")
+            if (lat != null && lng != null && orderType != "undefined"&& address != "undefined") {
+                val initialViewpoint = Viewpoint(lat, lng, Constants.defaultZoom / 5)
+                val pinSymbol =
+                    PictureMarkerSymbol(Constants.pinUrl).apply {
+                        height = Constants.pinSize
+                        width = Constants.pinSize
+                        offsetY = Constants.pinOffset
+                    }
+                val orderTypeSymbol = TextSymbol(12F, orderType, Color.BLACK, TextSymbol.HorizontalAlignment.CENTER, TextSymbol.VerticalAlignment.BOTTOM).apply {
+                    offsetY = Constants.pinOffset + 40
+                    backgroundColor = Color.WHITE
+                    fontWeight = TextSymbol.FontWeight.BOLD
+                }
+                val addressSymbol = TextSymbol(11F, address, Color.BLACK, TextSymbol.HorizontalAlignment.CENTER, TextSymbol.VerticalAlignment.BOTTOM).apply {
+                    offsetY = Constants.pinOffset + 22
+                    backgroundColor = Color.WHITE
+                }
+                mapOverlay.graphics.apply {
+                    clear()
+                    add(Graphic(initialViewpoint.targetGeometry, pinSymbol))
+                    add(Graphic(initialViewpoint.targetGeometry, orderTypeSymbol))
+                    add(Graphic(initialViewpoint.targetGeometry, addressSymbol))
+                }
+                mapView.setViewpointAsync(initialViewpoint)
+            }
+        }
     }
 
     private fun setupPermissions() {
@@ -87,12 +133,6 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
             Manifest.permission.ACCESS_FINE_LOCATION
         )
         ActivityCompat.requestPermissions(this, permissions, 0)
-    }
-
-    private fun moveToMyPosition() {
-        val currentPosition = locationDisplay.location.position
-        mapView.setViewpointAsync(Viewpoint(currentPosition, 200000.0))
-        locationDisplay.removeLocationChangedListener(this)
     }
 
     private fun loadLayers() {
@@ -138,7 +178,9 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
         if (locationEvent == null) {
             return
         }
-        moveToMyPosition()
+        val currentPosition = locationEvent.location.position
+        mapView.setViewpointAsync(Viewpoint(currentPosition, Constants.defaultZoom))
+        locationDisplay.removeLocationChangedListener(this)
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
@@ -159,6 +201,12 @@ class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListene
     }
 
     override fun onLayerLoadStatusChanged(status: LoadStatus) {
+    }
 
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent != null) {
+            setupInitialLocation(intent)
+        }
     }
 }
