@@ -20,6 +20,7 @@ import com.example.myapplication.layers.LayerLoadStatusChanged
 import com.example.myapplication.layers.LayersHelper
 import com.google.android.material.navigation.NavigationView
 
+
 class MainActivity : AppCompatActivity(), LocationDisplay.LocationChangedListener,
     LayerLoadStatusChanged, NavigationView.OnNavigationItemSelectedListener {
 

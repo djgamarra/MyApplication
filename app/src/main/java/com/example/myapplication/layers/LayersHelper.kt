@@ -19,8 +19,8 @@ object LayersHelper {
     private val rootLayer: ArcGISMapImageLayer by lazy {
         ArcGISMapImageLayer(Constants.baseUrl).apply {
             isVisible = false
-            minScale = Constants.defaultMinScale
-            maxScale = Constants.defaultMaxScale
+//            minScale = Constants.defaultMinScale
+//            maxScale = Constants.defaultMaxScale
         }
     }
 
@@ -46,14 +46,17 @@ object LayersHelper {
 
     private fun runSubLayerTree(subLayer: ArcGISMapImageSublayer) {
         val isRootLayer = Constants.rootLayerIds.contains(subLayer.id)
+        val isFeatureLayer = subLayer.id in Constants.featureLayerIds
         subLayer.apply {
             isVisible = isRootLayer
-            minScale = Constants.defaultMinScale
-            maxScale = Constants.defaultMaxScale
+            if (isFeatureLayer) {
+                minScale = Constants.defaultMinScale
+                maxScale = Constants.defaultMaxScale
+            }
         }
         if (isRootLayer) {
             subLayer.sublayers.forEach { runSubLayerTree(it as ArcGISMapImageSublayer) }
-        } else if (subLayer.id in Constants.featureLayerIds) {
+        } else if (isFeatureLayer) {
             serviceLayers[subLayer.id] = ServiceLayer(subLayer)
         }
     }
