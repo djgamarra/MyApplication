@@ -7,11 +7,11 @@ import com.esri.arcgisruntime.mapping.ArcGISMap
 import com.example.myapplication.Constants
 
 object LayersHelper {
-    private val statusListeners: MutableSet<LayerLoadStatusChanged> = mutableSetOf()
+    private val statusListeners: MutableMap<String, LayerLoadStatusChanged> = mutableMapOf()
     private var loadStatus: LoadStatus = LoadStatus.NOT_LOADED
         set(value) {
             field = value
-            statusListeners.forEach { it.onGeoServiceLoadStatusChanged(value) }
+            statusListeners.forEach { it.value.onGeoServiceLoadStatusChanged(value) }
         }
     private lateinit var map: ArcGISMap
     val serviceLayers: MutableMap<Long, ServiceLayer> = mutableMapOf()
@@ -62,11 +62,11 @@ object LayersHelper {
         serviceLayers[layerId]?.active = false
     }
 
-    fun addStatusChangedListener(listener: LayerLoadStatusChanged) {
-        statusListeners.add(listener)
+    fun addStatusChangedListener(tag: String, listener: LayerLoadStatusChanged) {
+        statusListeners[tag] = listener
     }
 
-    fun removeStatusChangedListener(listener: LayerLoadStatusChanged) {
-        statusListeners.remove(listener)
+    fun removeStatusChangedListener(tag: String) {
+        statusListeners.remove(tag)
     }
 }

@@ -11,6 +11,7 @@ object Constants {
     const val defaultMinScale = 700000.0
     const val defaultMaxScale = 0.0
     const val defaultZoom = 200000.0
+    const val defaultOrderZoom = defaultZoom / 30
 
     // The only visible layers must be:
     // -- 2: Red de Gas
